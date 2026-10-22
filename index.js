@@ -1,0 +1,12 @@
+{
+  "name": "zabi-scalper-pro-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+    }
