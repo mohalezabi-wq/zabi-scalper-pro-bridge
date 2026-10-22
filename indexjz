@@ -1,0 +1,67 @@
+
+import http from "node:http";
+import { timingSafeEqual } from "node:crypto";
+
+const PORT = process.env.PORT || 10000;
+const TOKEN = process.env.BRIDGE_TOKEN;
+
+const server = http.createServer((req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "no-store");
+
+  if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200);
+    return res.end(JSON.stringify({
+      status: "online",
+      mode: "simulation_only",
+      liveTrading: false
+    }));
+  }
+
+  if (req.method === "POST" && req.url === "/signal") {
+    const supplied = req.headers.authorization || "";
+    const expected = TOKEN ? `Bearer ${TOKEN}` : "";
+    const a = Buffer.from(supplied);
+    const b = Buffer.from(expected);
+
+    if (!TOKEN || a.length !== b.length ||
+        !timingSafeEqual(a, b)) {
+      res.writeHead(401);
+      return res.end(JSON.stringify({ error: "Unauthorized" }));
+    }
+
+    let body = "";
+    req.on("data", chunk => {
+      body += chunk;
+      if (body.length > 10000) req.destroy();
+    });
+
+    req.on("end", () => {
+      try {
+        const signal = JSON.parse(body);
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          accepted: true,
+          mode: "simulation_only",
+          liveTrading: false,
+          received: {
+            symbol: signal.symbol ?? null,
+            action: signal.action ?? null
+          }
+        }));
+      } catch {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+      }
+    });
+    return;
+  }
+
+  res.writeHead(404);
+  res.end(JSON.stringify({ error: "Not found" }));
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Simulation bridge listening on ${PORT}`);
+});
+  
